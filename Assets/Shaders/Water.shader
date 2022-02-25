@@ -2,15 +2,18 @@
 {
     Properties
     {
-        _Color ("Color", Color) = (1.0, 1.0, 1.0, 1.0)
+        _ShallowWaterColor ("Shallow Water Color", Color) = (0.0, 0.0, 0.5, 1.0)
+        _DeepWaterColor ("Deep Water Color", Color) = (0.0, 0.0, 1.0, 1.0)
+
         _MainTex ("Texture", 2D) = "white" {}
 
         _CameraDepthTexture("Depth Texture", 2D) = "" {}
-        _DepthLevel ("Depth Level", Range(1.0, 5.0)) = 1.0
-        _DegradationStrength ("Degradation Strength", Range(0.0, 1.0)) = 0.5
+        _Depth ("Depth Level", Float) = 1.0
+        _Strength ("Gradient Strength", Range(0.0, 2.0)) = 1.0
 
-        [HideInInspector] _ScreenWidth("Screen Width", Int) = 1
-        [HideInInspector] _ScreenHeight("Screen Height", Int) = 1
+        [HideInInspector] _ScreenWidth("Screen Width", Int) = 1920
+        [HideInInspector] _ScreenHeight("Screen Height", Int) = 1080
+        [HideInInspector] _FarPlane("Far Plane", Float) = 1000.0
     }
     SubShader
     {
@@ -30,17 +33,20 @@
 
             #include "UnityCG.cginc"
 
-            fixed4 _Color;
+            fixed4 _ShallowWaterColor;
+            fixed4 _DeepWaterColor;
+
             sampler2D _MainTex;
             half4 _MainTex_TexelSize;
             float4 _MainTex_ST;
 
             sampler2D _CameraDepthTexture;
-            float _DepthLevel;
-            float _DegradationStrength;
+            float _Depth;
+            float _Strength;
 
             int _ScreenWidth;
             int _ScreenHeight;
+            float _FarPlane;
 
             struct appdata
             {
@@ -51,69 +57,45 @@
             struct v2f
             {
                 float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
+                float4 rawScreenPosition : TEXCOORD0;
+                //float2 uv : TEXCOORD0;
             };
 
             v2f vert (appdata v)
-            //v2f vert (appdata v, out float4 vertex : SV_POSITION)
             {
                 v2f o;
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                //vertex = UnityObjectToClipPos(v.vertex);
 
+                o.rawScreenPosition = o.vertex;
                 //o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-                o.uv = MultiplyUV(UNITY_MATRIX_TEXTURE0, v.uv);
+                //o.uv = MultiplyUV(UNITY_MATRIX_TEXTURE0, v.uv);
 
                 return o;
             }
 
-            // CHECKEAR MAIL DEL PROFE PARA VER SI ES SERÁ NECESARIO HACER LO DE LA DISTANCIA A CÁMARA Y SINO INTENTAR ALGO MÁS FÁCIL uwu
-
             fixed4 frag(v2f i) : SV_Target
-            //fixed4 frag(v2f i, UNITY_VPOS_TYPE screenPosition : VPOS) : SV_Target
             {
-                //fixed4 depth = tex2D(_MainTex, i.uv) * UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, i.uv)) * _Color;
+                // Calcular la profundidad de cámara en este fragment
+                float2 screenPosition = float2(i.vertex.x / _ScreenWidth, i.vertex.y / _ScreenHeight);
 
-                //depth = pow(Linear01Depth(depth), _DepthLevel);
+                float cameraDepth01 = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, screenPosition);
+                cameraDepth01 = Linear01Depth(cameraDepth01);
 
-                //float2 clipPosition = (screenPosition.x / 1920);
-                //fixed4 depth = tex2D(_CameraDepthTexture, i.uv) * _DepthLevel;
+                float cameraDepth = cameraDepth01 * _FarPlane;
 
-                //float depth = Linear01Depth(tex2D(_CameraDepthTexture, i.uv));
-                //float depth = pow(Linear01Depth(UNITY_SAMPLE_DEPTH(i.uv)), _DepthLevel);
-                //float depth = LinearEyeDepth(UNITY_SAMPLE_DEPTH(i.uv)) * _DepthLevel;
+                // Calcular la profundidad del fragment
+                float fragmentDepth = i.rawScreenPosition.w;
 
-                //depth = Linear01Depth(depth);
+                // Generar profundidad del agua
+                float depth = clamp((cameraDepth - fragmentDepth + _Depth) * _Strength, 0.0, 1.0);
 
-                //UNITY_OUTPUT_DEPTH(i.uv);
-
-                //float2 clipCoors = float2((i.vertex.x + 1.0) / 2.0, (i.vertex.y + 1.0) / 2.0);
-                //float2 clipCoors = float2(i.vertex.x / _ScreenWidth, i.vertex.y / _ScreenHeight);
-                //return fixed4((clipCoors.x + 1.0) / 2.0, (clipCoors.y + 1.0) / 2.0, 0.0, 1.0);
-                //return fixed4(i.vertex.x / 500.0, i.vertex.y / 500.0, 0.0, 1.0);
-
-                //fixed4 color = _Color;
-                //color.a = depth.r;
+                // Lerpear entre los dos colores de agua usando la profundidad
+                float4 color = lerp(_ShallowWaterColor, _DeepWaterColor, depth);
                 //return color;
-                
-                //fixed4 color = i.vertex;
-                //return color;
-                
-                float2 clipPosition = float2(i.vertex.x / _ScreenWidth, i.vertex.y / _ScreenHeight);
-                //float2 clipPosition = float2(i.vertex.x / 1000.0, i.vertex.y / 500.0);
-                // 
-                //fixed4 depth = tex2D(_CameraDepthTexture, clipPosition) * _DepthLevel;
-                fixed4 depth = tex2D(_CameraDepthTexture, clipPosition);
-
-                fixed4 color = _Color;
-                //fixed4 color = fixed4(depth.r, 0.0, 0.0, 1.0);
-
-                //color.a = depth.r + 0.025;
-                //color.a = pow(depth.r, _DegradationStrength);
-                //color.a = pow(Linear01Depth(UNITY_SAMPLE_DEPTH(i.uv)), _DepthLevel);
-                //color.a = pow(Linear01Depth(clipPosition), _DepthLevel);
-                color.a = pow(depth.r, _DegradationStrength) * _DepthLevel;
-                return color;
+                return fixed4(i.vertex.x, i.vertex.y, 0.0, 1.0);
+                //return fixed4(screenPosition.x, screenPosition.y, 0.0, 1.0);
+                //return fixed4(fragmentDepth, fragmentDepth, fragmentDepth, 1.0);
+                //return fixed4(cameraDepth, cameraDepth, cameraDepth, 1.0);
             }
             ENDCG
         }
