@@ -2,12 +2,10 @@
 {
     Properties
     {
-        //_Color("Color", Color) = (1,1,1,1)
-        //_MainTex("Albedo (RGB)", 2D) = "white" {}
-        //_Glossiness("Smoothness", Range(0,1)) = 0.5
-        //_Metallic("Metallic", Range(0,1)) = 0.0
-        //[Space]
+        [Header(General Properties)]
+        [Space]
         _Smoothness("Smoothness", Range(0.0, 1.0)) = 0.5
+        _OffsetSpeedDivider("Offset Speed Divider", Float) = 50.0
 
         [Header(Water Colors)]
         [Space]
@@ -22,24 +20,23 @@
         [Header(Normal Maps)]
         [Space]
         _MainNormal("Main Normal", 2D) = "bump" {}
-        _MainNormalSpeed("Main Normal Speed", Float) = 1.0
+        _MainOffsetSpeed("Main Offset Speed", Vector) = (1.0, 1.0, 0.0)
         [Space]
         _SecondNormal("Second Normal", 2D) = "bump" {}
-        _SecondNormalSpeed("Second Normal Speed", Float) = -0.5
+        _SecondOffsetSpeed("Second Offset Speed", Vector) = (-0.5, -0.5, 0.0)
         [Space]
-        _NormalStrength("Normal Strength", Float) = 1.0
-        _NormalSpeedDivider("Normal Speed Divider", Float) = 50.0
+        _MinNormalStrength("Minimum Normal Strength", Float) = 0.25
+        _NormalStrength("Normal Strength", Range(0.0, 5.0)) = 1.0
 
         [Header(Vertex Displacement)]
         [Space]
         _NoiseTexture("Noise", 2D) = "white" {}
+        _NoiseOffsetSpeed("Noise Offset Speed", Vector) = (1.0, 1.0, 0.0)
         _DisplacementStrength("Displacement Strength", Float) = 1.0
 
         [HideInInspector] _ScreenWidth("Screen Width", Int) = 1920
         [HideInInspector] _ScreenHeight("Screen Height", Int) = 1080
         [HideInInspector] _FarPlane("Far Plane", Float) = 1000.0
-
-            //[HideInInspector] _Time("Time", Float) = 1000.0
     }
     SubShader
     {
@@ -50,35 +47,31 @@
         //Cull front
         LOD 100
 
-        //Tags { "RenderType" = "Fade" }
-        //LOD 200
-
         CGPROGRAM
         //#pragma surface surf Standard fullforwardshadows alpha:fade vertex:vert
         #pragma surface surf Standard fullforwardshadows vertex:vert
-        #pragma target 3.0
+        #pragma target 3.5
 
         float _Smoothness;
+        float _OffsetSpeedDivider;
 
         fixed4 _ShallowWaterColor;
         fixed4 _DeepWaterColor;
-
-        //sampler2D _MainTex;
-        //half4 _MainTex_TexelSize;
-        //float4 _MainTex_ST;
 
         sampler2D _CameraDepthTexture;
         float _Depth;
         float _Strength;
 
+
         sampler2D _MainNormal;
-        float _MainNormalSpeed;
+        float2 _MainOffsetSpeed;
         sampler2D _SecondNormal;
-        float _SecondNormalSpeed;
+        float2 _SecondOffsetSpeed;
+        float _MinNormalStrength;
         float _NormalStrength;
-        float _NormalSpeedDivider;
 
         sampler2D _NoiseTexture;
+        float2 _NoiseOffsetSpeed;
         float _DisplacementStrength;
 
         int _ScreenWidth;
@@ -87,31 +80,30 @@
 
         struct Input
         {
-            //float d;
+            float4 noise;
+
             float4 vertex;
             float4 screenPos;
-            float2 uv_MainNormal;
-            float2 uv_SecondNormal;
-            //float2 uv_NoiseTexture;
+
+            float2 uv_MainNormal : TEXCOORD0;
+            float2 uv_SecondNormal : TEXCOORD1;
+            float2 uv_NoiseTexture : TEXCOORD2;
         };
 
         void vert(inout appdata_full v, out Input o)
         {
             UNITY_INITIALIZE_OUTPUT(Input, o);
 
-            //float displacement = tex2Dlod(_NoiseTexture, float4(o.uv_NoiseTexture.xy, 0.0, 0.0)).x * 2.0 - 1.0;
-            //v.vertex.y = displacement * _DisplacementStrength;
-            //o.d = tex2D(_NoiseTexture, float4(o.uv_NoiseTexture.xy, 0.0, 0.0)).x * 2.0 - 1.0;
+            // Desplazar vertice en base a la textura de perlin noise
+            float2 noiseUV = v.texcoord.xy + _Time.y * (_NoiseOffsetSpeed.xy / _OffsetSpeedDivider);
+            float displacement = tex2Dlod(_NoiseTexture, float4(noiseUV, 0.0, 0.0)).x * 2.0 - 1.0;
+            v.vertex.y = displacement * _DisplacementStrength;
 
             o.vertex = UnityObjectToClipPos(v.vertex);
         }
 
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
-            //o.Albedo.rgb = tex2D(_NoiseTexture, IN.uv_NoiseTexture.xy).x * _DisplacementStrength;
-            //o.Albedo.rgb = IN.d;
-            //return;
-
             // Calcular la profundidad de cámara en este fragment
             float cameraDepth01 = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, UNITY_PROJ_COORD(IN.screenPos));
             cameraDepth01 = Linear01Depth(cameraDepth01);
@@ -130,14 +122,15 @@
             // Normal maps
             float time = _Time.y;
 
-            float2 mainNormalUV = IN.uv_MainNormal + time * (_MainNormalSpeed / _NormalSpeedDivider);
+            float2 mainNormalUV = IN.uv_MainNormal + time * (_MainOffsetSpeed.xy / _OffsetSpeedDivider);
             float3 mainNormal = UnpackNormal(tex2D(_MainNormal, mainNormalUV));
 
-            float2 secondNormalUV = IN.uv_SecondNormal + time * (_SecondNormalSpeed / _NormalSpeedDivider);
+            float2 secondNormalUV = IN.uv_SecondNormal + time * (_SecondOffsetSpeed.xy / _OffsetSpeedDivider);
             float3 secondNormal = UnpackNormal(tex2D(_SecondNormal, secondNormalUV));
 
             float3 normal = mainNormal + secondNormal;
-            normal.xy *= lerp(0.0, _NormalStrength, depth);
+            _MinNormalStrength = clamp(_MinNormalStrength, 0.0, _NormalStrength);
+            normal.xy *= lerp(_MinNormalStrength, _NormalStrength, depth);
             
             // Asignar las propiedades del material
             o.Albedo = color.rgb;

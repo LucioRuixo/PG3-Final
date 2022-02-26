@@ -75,11 +75,11 @@ Material:
     - _BumpScale: 1
     - _Cutoff: 0.5
     - _DegradationStrength: 0.606
-    - _Depth: -3.2
+    - _Depth: -17.8
     - _DepthLevel: 2.16
     - _DetailNormalMapScale: 1
     - _Displacement: 1
-    - _DisplacementStrength: 1
+    - _DisplacementStrength: 0.25
     - _DstBlend: 0
     - _FarPlane: 1000
     - _GlossMapScale: 1
@@ -87,20 +87,22 @@ Material:
     - _GlossyReflections: 1
     - _MainNormalSpeed: 1
     - _Metallic: 0.465
+    - _MinNormalStrength: 0.25
     - _Mode: 0
     - _NormalMultiplier: 1
     - _NormalSpeedDivider: 50
     - _NormalStrength: 1
     - _OcclusionStrength: 1
+    - _OffsetSpeedDivider: 50
     - _Parallax: 0.02
-    - _ScreenHeight: 603
-    - _ScreenWidth: 1072
+    - _ScreenHeight: 720
+    - _ScreenWidth: 1280
     - _SecondNormalSpeed: -0.5
     - _Smoothness: 0.894
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
     - _SrcBlend: 1
-    - _Strength: 0.04
+    - _Strength: 0.19
     - _UVSec: 0
     - _VertexDivider: 916
     - _ZWrite: 1
@@ -108,4 +110,7 @@ Material:
     - _Color: {r: 0.15508187, g: 0.5722427, b: 0.8018868, a: 0}
     - _DeepWaterColor: {r: 0.05513528, g: 0.24909937, b: 0.5566038, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _MainOffsetSpeed: {r: 1, g: 1, b: 0, a: 0}
+    - _NoiseOffsetSpeed: {r: 1, g: 1, b: 0, a: 0}
+    - _SecondOffsetSpeed: {r: -0.5, g: -0.5, b: 0, a: 0}
     - _ShallowWaterColor: {r: 0.05900677, g: 0.62601054, b: 0.735849, a: 1}
