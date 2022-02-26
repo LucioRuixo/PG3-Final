@@ -111,7 +111,7 @@
             float cameraDepth = cameraDepth01 * _FarPlane;
 
             // Calcular la profundidad del fragment
-            float fragmentDepth = IN.vertex.w / 1000.0;
+            float fragmentDepth = IN.vertex.w;
 
             // Generar profundidad del agua
             float depth = clamp((cameraDepth - fragmentDepth + _Depth) * _Strength, 0.0, 1.0);
